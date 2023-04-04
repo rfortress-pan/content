@@ -3126,6 +3126,28 @@ script:
       required: false
     deprecated: false
     description: Update an existing shared credential.
+  - arguments:
+    - description: ID of the site.
+      name: site_id
+    - description: Name of the site (can be used instead of `site_id`)
+      name: site_name
+    description: Get site included targets
+    name: nexpose-get-site-included-targets
+    outputs:
+    - contextPath: Nexpose.SiteIncludedTargets.included_targets
+      description: List of addresses. Each address is a string that can represent either a hostname, ipv4 address, ipv4 address range, ipv6 address, or CIDR notation.
+  - arguments:
+    - description: ID of the site.
+      name: site_id
+    - description: Name of the site (can be used instead of `site_id`)
+      name: site_name
+    - description: List of addresses to be the site's new included scan targets. Each address is a string that can represent either a hostname, ipv4 address, ipv4 address range, ipv6 address, or CIDR notation.
+      name: targets
+    description: Updates the included targets in a static site.
+    name: nexpose-update-site-included-targets
+    outputs:
+    - contextPath: IncludedTargets
+      description: List of addresses. Each address is a string that can represent either a hostname, ipv4 address, ipv4 address range, ipv6 address, or CIDR notation.
     execution: false
     name: nexpose-update-shared-credential
   isfetch: false
