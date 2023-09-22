@@ -222,7 +222,6 @@ def proxmox_capabilities(client: Client) -> CommandResults:
 
 def proxmox_list_nodes(client: Client) -> CommandResults:
     result = client.list_nodes()
-    debug(f'result: {result}')
     nodes = {}
     node_list = []
     
@@ -231,21 +230,21 @@ def proxmox_list_nodes(client: Client) -> CommandResults:
             'node': item['node'],
             'status': item['status']
         }
+
         if item['status'] == 'online':
             node['cpu'] = f'{round(item["cpu"]*10000)/100}% of {item["maxcpu"]} CPU(s)'
             node['mem'] = f'{(round((item["mem"] / item["maxmem"]) *10000)/100)}% ({convert_size(item["mem"])} of {convert_size(item["maxmem"])})'
             node['disk'] = f'{(round((item["disk"] / item["maxdisk"]) *10000)/100)}% ({convert_size(item["disk"])} of {convert_size(item["maxdisk"])})'
             node['uptime'] = convert_time(item['uptime'])
+
         else:
             node['cpu'] = 'N/A'
             node['mem'] = 'N/A'
             node['disk'] = 'N/A'
             node['uptime'] = 'N/A'
 
-        nodes[item['node']] = item
         node_list.append(node)
-    
-    debug(f'nodes: {nodes}')
+        nodes[item['node']] = item
     
     markdown = tableToMarkdown('Proxmox Nodes', node_list, headers=['node', 'status', 'cpu', 'mem', 'disk', 'uptime'])
     
