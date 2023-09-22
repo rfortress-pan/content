@@ -1,0 +1,91 @@
+category: Utilities
+commonfields:
+  id: Proxmox
+  version: -1
+configuration:
+- defaultvalue: https://example.com/
+  display: Your server URL
+  name: url
+  required: true
+  type: 0
+- display: Username
+  additionalinfo: The username to use for the connection
+  name: username
+  required: true
+  hiddenusername: false
+  type: 0
+- displaypassword: Password
+  additionalinfo: The password for the user to use for the connection
+  name: password
+  required: true
+  hiddenusername: true
+  type: 9
+- display: Trust any certificate (not secure)
+  name: insecure
+  type: 8
+  required: false
+- display: Use system proxy settings
+  name: proxy
+  type: 8
+  required: false
+description: 'An integration for interacting with Proxmox.'
+display: Proxmox
+name: Proxmox
+script:
+  commands:
+  - description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+    name: proxmox-capabilites
+    outputs:
+    - contextPath: Proxmox.Output
+      description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+      type: String
+  - description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+    name: proxmox-list-nodes
+    outputs:
+    - contextPath: Proxmox.Output
+      description: 'Returns a list of available nodes and their status.'
+      type: String
+  - arguments:
+    - description: '[Enter the node to which the VM belongs]'
+      name: node
+      required: true
+    description: 'List all VMs for a node'
+    name: proxmox-list-vms
+    outputs:
+    - contextPath: Proxmox.Output
+      description: 'Returns all VMs for a node'
+      type: String
+  - arguments:
+    - description: '[Enter the node to which the VM belongs]'
+      name: node
+      required: true
+    - description: '[Enter the id of the VM]'
+      name: vm-id
+      required: true
+    description: 'Start a VM'
+    name: proxmox-vm-start
+    outputs:
+    - contextPath: Proxmox.Output
+      description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+      type: String
+  - arguments:
+    - description: '[Enter the node to which the VM belongs]'
+      name: node
+      required: true
+    - description: '[Enter the id of the VM]'
+      name: vm-id
+      required: true
+    description: 'Shutdown a VM'
+    name: proxmox-vm-shutdown
+    outputs:
+    - contextPath: Proxmox.Output
+      description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+      type: String
+  runonce: false
+  script: '-'
+  type: python
+  subtype: python3
+  dockerimage: demisto/python3:3.10.12.63474
+fromversion: 5.5.0
+tests:
+- No tests (auto formatted)

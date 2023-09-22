@@ -1,0 +1,21 @@
+{
+    "name": "Proxmox",
+    "description": "An integration for interacting with Proxmox.",
+    "support": "xsoar",
+    "currentVersion": "1.0.0",
+    "author": "Ryan Fortress",
+    "url": "https://www.paloaltonetworks.com/cortex",
+    "email": "rfortress@paloaltonetworks.com",
+    "created": "2023-09-21T00:00:00Z",
+    "categories": [
+        "Network Security"
+    ],
+    "tags": [],
+    "useCases": [],
+    "keywords": [],
+    "itemPrefix": [],
+    "marketplaces": [
+        "xsoar",
+        "marketplacev2"
+    ]
+}
