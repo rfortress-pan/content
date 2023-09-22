@@ -1,10 +1,12 @@
 '''
+# TODO
 [] Create tests
 [] Fix context outputs
 [] Fix MD outputs
 [] Fix user/pass params
 [] Create pack README
 [] Create integration README
+[] Add icon
 '''
 
 from typing import Any, Dict, Optional
@@ -56,13 +58,12 @@ class Client(BaseClient):
             }
             self.cookies = { 'PVEAuthCookie': self.context['authCookie'] }
 
-
     def http_request(self, method, url_suffix, params=None, data=None, cookies=None, retry=False):
         full_url = urljoin(self.base_url, url_suffix)
 
-        # debug(f'full_url: {full_url}')
-        # debug(f'headers: {self.headers}')
-        # debug(f'cookies: {self.cookies}')
+        debug(f'full_url: {full_url}')
+        debug(f'headers: {self.headers}')
+        debug(f'cookies: {self.cookies}')
 
         if method == 'POST' and data is None:
             data = {}
@@ -76,10 +77,11 @@ class Client(BaseClient):
             json=data,
             cookies=cookies
         )
-        # debug(f'status_code: {res.status_code}')
-        # debug(f'res.text: {res.text}')
+        debug(f'status_code: {res.status_code}')
+        debug(f'res.text: {res.text}')
         # debug(f'res.json(): {res.json()}')
 
+        # 401 permission denied - invalid PVE ticket
         if res.status_code == 401:
             debug('got 401')
             if retry:
@@ -96,7 +98,6 @@ class Client(BaseClient):
 
         try:
             return res.json()
-
         except Exception:
             raise ValueError(f'[{res.status_code}] {res.text}')
 
@@ -134,7 +135,7 @@ class Client(BaseClient):
 
     def list_vms(self, node=None):
         if node is None:
-            raise ValueError(f'Error: No node name provided')
+            raise ValueError('No node name provided.\nUse !proxmox-list-nodes for list of available nodes.')
 
         response = self.http_request(method='GET',
                                      url_suffix=f'nodes/{node}/qemu/',
@@ -208,7 +209,6 @@ def test_module(client: Client) -> str:
     return "ok"
 
 
-# TODO: REMOVE the following dummy command function
 def proxmox_capabilities(client: Client) -> CommandResults:
     # Call the Client function and get the raw response
     result = client.authenticate()
@@ -259,12 +259,36 @@ def proxmox_list_nodes(client: Client) -> CommandResults:
 def proxmox_list_vms(client: Client, args: dict) -> CommandResults:
     node = args.get('node', None)
     result = client.list_vms(node)
+    vms = {}
+    vm_list = []
     
+    for item in result:
+        vm = {
+            'vmid': item['vmid'],
+            'status': item['status'],
+            'name': item['name'],
+            'disk': f'{convert_size(item["maxdisk"])}'
+        }
+        if item['status'] == 'running':
+            vm['cpu'] = f'{round(item["cpu"]*10000)/100}% of {item["cpus"]} CPU(s)'
+            vm['mem'] = f'{(round((item["mem"] / item["maxmem"]) *10000)/100)}% ({convert_size(item["mem"])} of {convert_size(item["maxmem"])})'
+            vm['uptime'] = convert_time(item['uptime'])
+        else:
+            vm['cpu'] = f'{item["cpus"]}'
+            vm['mem'] = f'{convert_size(item["maxmem"])}'
+            vm['uptime'] = 'N/A'
+        vm_list.append(vm)
+        vms[item['vmid']] = item
+        
+    vm_list = sorted(vm_list, key=lambda x: x['vmid'])
+    markdown = tableToMarkdown(f'Proxmox {node} VMs', vm_list, headers=['vmid', 'name', 'status', 'cpu', 'mem', 'disk', 'uptime'])
+        
     return CommandResults(
-        outputs_prefix='Proxmox',
+        outputs_prefix=f'Proxmox.{node}.VMs',
         outputs_key_field='vms',
-        outputs=result,
-    )
+        readable_output=markdown,
+        outputs=vms
+    )        
 
 
 def proxmox_start_vm(client: Client, args: dict) -> CommandResults:

@@ -36,23 +36,23 @@ script:
   - description: 'Returns the RBAC capabilities assigned to the associated username and password.'
     name: proxmox-capabilites
     outputs:
-    - contextPath: Proxmox.Output
+    - contextPath: Proxmox.Capabilities
       description: 'Returns the RBAC capabilities assigned to the associated username and password.'
       type: String
-  - description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+  - description: 'Returns a list of available nodes.'
     name: proxmox-list-nodes
     outputs:
     - contextPath: Proxmox.Nodes
       description: 'Returns a list of available nodes and their status.'
       type: String
   - arguments:
-    - description: '[Enter the node to which the VM belongs]'
+    - description: '[Enter the node to get the VMs]'
       name: node
       required: true
     description: 'List all VMs for a node'
     name: proxmox-list-vms
     outputs:
-    - contextPath: Proxmox.Output
+    - contextPath: Proxmox.Node.VMs
       description: 'Returns all VMs for a node'
       type: String
   - arguments:
