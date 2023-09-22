@@ -1,18 +1,11 @@
-"""Base Integration for Cortex XSOAR (aka Demisto)
-
-This is an empty Integration with some basic structure according
-to the code conventions.
-
-MAKE SURE YOU REVIEW/REPLACE ALL THE COMMENTS MARKED AS "TODO"
-
-Developer Documentation: https://xsoar.pan.dev/docs/welcome
-Code Conventions: https://xsoar.pan.dev/docs/integrations/code-conventions
-Linting: https://xsoar.pan.dev/docs/integrations/linting
-
-This is an empty structure file. Check an example at;
-https://github.com/demisto/content/blob/master/Packs/HelloWorld/Integrations/HelloWorld/HelloWorld.py
-
-"""
+'''
+[] Create tests
+[] Fix context outputs
+[] Fix MD outputs
+[] Fix user/pass params
+[] Create pack README
+[] Create integration README
+'''
 
 from typing import Any, Dict, Optional
 
@@ -20,6 +13,8 @@ import demistomock as demisto
 import urllib3
 import requests
 import json
+import math
+import datetime
 
 from CommonServerPython import *  # noqa # pylint: disable=unused-wildcard-import
 from CommonServerUserPython import *  # noqa
@@ -49,9 +44,8 @@ class Client(BaseClient):
         self.verify = verify
         self.username = username
         self.password = password
-        
         self.context = demisto.getIntegrationContext()
-        # debug(f'self.context: {self.context}')
+
         if self.context == '':
             self.authenticate()
 
@@ -63,12 +57,12 @@ class Client(BaseClient):
             self.cookies = { 'PVEAuthCookie': self.context['authCookie'] }
 
 
-    def http_request(self, method, url_suffix, params=None, data=None, cookies=None):
+    def http_request(self, method, url_suffix, params=None, data=None, cookies=None, retry=False):
         full_url = urljoin(self.base_url, url_suffix)
 
-        debug(f'full_url: {full_url}')
-        debug(f'headers: {self.headers}')
-        debug(f'cookies: {self.cookies}')
+        # debug(f'full_url: {full_url}')
+        # debug(f'headers: {self.headers}')
+        # debug(f'cookies: {self.cookies}')
 
         if method == 'POST' and data is None:
             data = {}
@@ -82,34 +76,46 @@ class Client(BaseClient):
             json=data,
             cookies=cookies
         )
-        debug(f'status_code: {res.status_code}')
-        debug(f'res.text: {res.text}')
-        debug(f'res.json(): {res.json()}')
+        # debug(f'status_code: {res.status_code}')
+        # debug(f'res.text: {res.text}')
+        # debug(f'res.json(): {res.json()}')
 
         if res.status_code == 401:
-            self.authenticate()
+            debug('got 401')
+            if retry:
+                debug('retry was True and got a 401, failing')
+                raise ValueError(f'[{res.status_code}]: {res.text}')
+
+            debug('getting fresh authentication')
+            self.authenticate(retry=True)
+            debug('trying request again')
+            self.http_request(method, url_suffix, params, data, cookies, retry=True)
+
         elif res.status_code not in [200, 201, 204]:
-            raise ValueError(f'Error [{res.status_code}]: {res.text}')
+            raise ValueError(f'[{res.status_code}] {res.text}')
 
         try:
             return res.json()
-        except Exception:
-            raise ValueError(f'Error: [{res.status_code}] {res.text}')
 
-    def authenticate(self):
+        except Exception:
+            raise ValueError(f'[{res.status_code}] {res.text}')
+
+    def authenticate(self, retry=False):
+        debug(f'calling authenticate(retry={retry})')
         body = {
             'username': self.username,
             'password': self.password
         }
         
-        # debug(f'body: {body}')
-        
-        body = remove_empty_elements(body)
         response = self.http_request(method='POST',
                                      url_suffix='access/ticket',
-                                     data=body)
+                                     data=body, retry=retry)
 
-        # debug(f'response: {response}')
+        self.context = {
+            'authCookie': response['data']['ticket'],
+            'csrfToken': response['data']['CSRFPreventionToken']
+        }
+        demisto.setIntegrationContext(self.context)
 
         self.headers = {
             'Content-Type': 'application/json',
@@ -117,14 +123,9 @@ class Client(BaseClient):
         }
         self.cookies = { 'PVEAuthCookie': self.context['authCookie'] }
 
-        demisto.setIntegrationContext({
-            'authCookie': response['data']['ticket'],
-            'csrfToken': response['data']['CSRFPreventionToken']
-        })
-
         return response['data']
 
-    def list_nodes(self, retry=False):
+    def list_nodes(self):
         response = self.http_request(method='GET',
                                      url_suffix='nodes',
                                      cookies=self.cookies)
@@ -170,7 +171,18 @@ class Client(BaseClient):
 
 """ HELPER FUNCTIONS """
 
-# TODO: ADD HERE ANY HELPER FUNCTION YOU MIGHT NEED (if any)
+def convert_size(size_bytes):
+   if size_bytes == 0:
+       return "0B"
+   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+   i = int(math.floor(math.log(size_bytes, 1024)))
+   p = math.pow(1024, i)
+   s = round(size_bytes / p, 2)
+   return "%s %s" % (s, size_name[i])
+
+
+def convert_time(seconds):
+    return str(datetime.timedelta(seconds=seconds))
 
 """ COMMAND FUNCTIONS """
 
@@ -210,11 +222,38 @@ def proxmox_capabilities(client: Client) -> CommandResults:
 
 def proxmox_list_nodes(client: Client) -> CommandResults:
     result = client.list_nodes()
+    debug(f'result: {result}')
+    nodes = {}
+    node_list = []
+    
+    for item in result:
+        node = {
+            'node': item['node'],
+            'status': item['status']
+        }
+        if item['status'] == 'online':
+            node['cpu'] = f'{round(item["cpu"]*10000)/100}% of {item["maxcpu"]} CPU(s)'
+            node['mem'] = f'{(round((item["mem"] / item["maxmem"]) *10000)/100)}% ({convert_size(item["mem"])} of {convert_size(item["maxmem"])})'
+            node['disk'] = f'{(round((item["disk"] / item["maxdisk"]) *10000)/100)}% ({convert_size(item["disk"])} of {convert_size(item["maxdisk"])})'
+            node['uptime'] = convert_time(item['uptime'])
+        else:
+            node['cpu'] = 'N/A'
+            node['mem'] = 'N/A'
+            node['disk'] = 'N/A'
+            node['uptime'] = 'N/A'
+
+        nodes[item['node']] = item
+        node_list.append(node)
+    
+    debug(f'nodes: {nodes}')
+    
+    markdown = tableToMarkdown('Proxmox Nodes', node_list, headers=['node', 'status', 'cpu', 'mem', 'disk', 'uptime'])
     
     return CommandResults(
-        outputs_prefix='Proxmox',
+        outputs_prefix='Proxmox.Nodes',
         outputs_key_field='nodes',
-        outputs=result
+        readable_output=markdown,
+        outputs=nodes
     )
 
 
@@ -256,22 +295,12 @@ def proxmox_shutdown_vm(client: Client, args: dict) -> CommandResults:
 def main():
     '''main function, parses params and runs command functions'''
 
-    # TODO: make sure you properly handle authentication
-    # api_key = params.get('apikey')
-
     params = demisto.params()
-    # get the service API url
     base_url = urljoin(params.get('url'), "api2/json")
 
-    # if your Client class inherits from BaseClient, SSL verification is
-    # handled out of the box by it, just pass ``verify_certificate`` to
-    # the Client constructor
     # verify_certificate = not argToBoolean(params('insecure', False))
-    verify = False
-
-    # if your Client class inherits from BaseClient, system proxy is handled
-    # out of the box by it, just pass ``proxy`` to the Client constructor
     # proxy = argToBoolean(params.get('proxy', False))
+    verify_certificate = False
     proxy = False
 
     command = demisto.command()
@@ -284,29 +313,29 @@ def main():
         headers = {}
 
         client = Client(
-            base_url=base_url, verify=verify, username=username,
+            base_url=base_url, verify=verify_certificate, username=username,
             password=password, headers=headers, proxy=proxy
         )
         args = demisto.args()
         
         # Commands
-        if command == "test-module":
+        if command == 'test-module':
             # This is the call made when pressing the integration Test button.
             result = test_module(client)
 
-        elif command == "proxmox-capabilites":
+        elif command == 'proxmox-capabilites':
             result = proxmox_capabilities(client)
-        elif command == "proxmox-list-nodes":
+        elif command == 'proxmox-list-nodes':
             result = proxmox_list_nodes(client)
-        elif command == "proxmox-list-vms":
+        elif command == 'proxmox-list-vms':
             result = proxmox_list_vms(client, args)
-        elif command == "proxmox-vm-start":
+        elif command == 'proxmox-vm-start':
             result = proxmox_start_vm(client, args)
-        elif command == "proxmox-vm-shutdown":
+        elif command == 'proxmox-vm-shutdown':
             result = proxmox_shutdown_vm(client, args)
             
         else:
-            raise NotImplementedError(f"Command {command} is not implemented")
+            raise NotImplementedError(f'Command {command} is not implemented')
 
         return_results(
             result
@@ -314,8 +343,8 @@ def main():
     # Log exceptions and return errors
 
     except Exception as e:
-        return_error(f"Failed to execute {command} command.\nError:\n{str(e)}")
+        return_error(f'Failed to execute {command} command.\nError:\n{str(e)}')
 
 
-if __name__ in ("__main__", "__builtin__", "builtins"):  # pragma: no cover
+if __name__ in ('__main__', '__builtin__', 'builtins'):  # pragma: no cover
     main()

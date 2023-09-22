@@ -42,7 +42,7 @@ script:
   - description: 'Returns the RBAC capabilities assigned to the associated username and password.'
     name: proxmox-list-nodes
     outputs:
-    - contextPath: Proxmox.Output
+    - contextPath: Proxmox.Nodes
       description: 'Returns a list of available nodes and their status.'
       type: String
   - arguments:
