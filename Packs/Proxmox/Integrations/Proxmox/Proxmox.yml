@@ -65,8 +65,8 @@ script:
     description: 'Start a VM'
     name: proxmox-vm-start
     outputs:
-    - contextPath: Proxmox.Output
-      description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+    - contextPath: Proxmox.Node.VM.Start
+      description: 'The response of the start request.'
       type: String
   - arguments:
     - description: '[Enter the node to which the VM belongs]'
@@ -78,8 +78,8 @@ script:
     description: 'Shutdown a VM'
     name: proxmox-vm-shutdown
     outputs:
-    - contextPath: Proxmox.Output
-      description: 'Returns the RBAC capabilities assigned to the associated username and password.'
+    - contextPath: Proxmox.Node.VM.Shutdown
+      description: 'The response of the shutdown request'
       type: String
   runonce: false
   script: '-'

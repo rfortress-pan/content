@@ -300,7 +300,6 @@ def proxmox_start_vm(client: Client, args: dict) -> CommandResults:
     
     return CommandResults(
         outputs_prefix=f'Proxmox.{node}.{vm_id}.Start',
-        # outputs_key_field='data',
         readable_output=markdown,
         outputs=result
     )
@@ -311,10 +310,12 @@ def proxmox_shutdown_vm(client: Client, args: dict) -> CommandResults:
     vm_id = args.get('vm-id', None)
     result = client.shutdown_vm(node, vm_id)
     
+    markdown = f'### Proxmox\nShutting down VM with id `{vm_id}` on node `{node}`...'
+
     return CommandResults(
-        outputs_prefix='Proxmox',
-        outputs_key_field='vms',
-        outputs=result,
+        outputs_prefix=f'Proxmox.{node}.{vm_id}.Shutdown',
+        readable_output=markdown,
+        outputs=result
     )
 
 
